@@ -89,7 +89,6 @@ int main(int argc, char **argv)
 	parse_command_line(argc, argv, input_file_name, model_file_name);
 	read_problem(input_file_name);
 	error_msg = svm_check_parameter(&prob,&param);
-
 	if(error_msg)
 	{
 		fprintf(stderr,"ERROR: %s\n",error_msg);
@@ -112,8 +111,13 @@ int main(int argc, char **argv)
 	}
 	svm_destroy_param(&param);
 	free(prob.y);
-	free(prob.x);
+#ifdef _DENSE_REP
+	for (int i = 0; i < prob.l; ++i)
+		free((prob.x+i)->values);
+#else
 	free(x_space);
+#endif
+	free(prob.x);
 	free(line);
 
 	return 0;
@@ -278,7 +282,12 @@ void parse_command_line(int argc, char **argv, char *input_file_name, char *mode
 void read_problem(const char *filename)
 {
 	int max_index, inst_max_index, i;
+#ifdef _DENSE_REP
+	int feature_index;
+	double value;
+#else
 	size_t elements, j;
+#endif
 	FILE *fp = fopen(filename,"r");
 	char *endptr;
 	char *idx, *val, *label;
@@ -290,10 +299,76 @@ void read_problem(const char *filename)
 	}
 
 	prob.l = 0;
-	elements = 0;
 
 	max_line_len = 1024;
 	line = Malloc(char,max_line_len);
+#ifdef _DENSE_REP
+	max_index = 1;
+	inst_max_index = 0;
+	while(readline(fp) != NULL)
+	{
+		char *p;		
+		p = strrchr(line, ':');
+		if(p != NULL)
+		{			
+			while(*p != ' ' && *p != '\t' && p > line)
+				p--;
+			if(p > line)
+			 	inst_max_index = (int) strtol(p,&endptr,10);
+		}
+		if(inst_max_index > max_index)
+		max_index = inst_max_index;
+		++prob.l;
+	}
+
+	rewind(fp);
+
+	prob.y = Malloc(double,prob.l);
+	prob.x = Malloc(struct svm_node,prob.l);
+
+	for(i=0;i<prob.l;i++)
+	{
+		int *d; 
+		(prob.x+i)->values = Malloc(double,max_index+1);
+		(prob.x+i)->dim = 0;
+
+		inst_max_index = -1; // strtol gives 0 if wrong format, and precomputed kernel has <index> start from 0
+		readline(fp);
+
+		label = strtok(line," \t");
+		prob.y[i] = strtod(label,&endptr);
+		if(endptr == label)
+			exit_input_error(i+1);
+
+		while(1)
+		{
+			idx = strtok(NULL,":");
+			val = strtok(NULL," \t");
+
+			if(val == NULL)
+				break;
+
+			errno = 0;
+			feature_index = (int) strtol(idx,&endptr,10);
+			if(endptr == idx || errno != 0 || *endptr != '\0' || feature_index <= inst_max_index)
+				exit_input_error(i+1);
+			else
+				inst_max_index = feature_index;
+
+			errno = 0;
+			value = strtod(val,&endptr);
+			if(endptr == val || errno != 0 || (*endptr != '\0' && !isspace(*endptr)))
+				exit_input_error(i+1);
+
+			d = &((prob.x+i)->dim);
+			while (*d < feature_index)
+				(prob.x+i)->values[(*d)++] = 0.0;
+			(prob.x+i)->values[(*d)++] = value;
+		}	
+	}
+
+#else
+	elements = 0;
 	while(readline(fp)!=NULL)
 	{
 		char *p = strtok(line," \t"); // label
@@ -357,6 +432,7 @@ void read_problem(const char *filename)
 			max_index = inst_max_index;
 		x_space[j++].index = -1;
 	}
+#endif
 
 	if(param.gamma == 0 && max_index > 0)
 		param.gamma = 1.0/max_index;
@@ -364,6 +440,18 @@ void read_problem(const char *filename)
 	if(param.kernel_type == PRECOMPUTED)
 		for(i=0;i<prob.l;i++)
 		{
+#ifdef _DENSE_REP
+			if ((prob.x+i)->dim == 0 || (prob.x+i)->values[0] == 0.0)
+			{
+				fprintf(stderr,"Wrong input format: first column must be 0:sample_serial_number\n");
+				exit(1);
+			}
+			if ((int)(prob.x+i)->values[0] < 0 || (int)(prob.x+i)->values[0] > max_index)
+			{
+				fprintf(stderr,"Wrong input format: sample_serial_number out of range\n");
+				exit(1);
+			}
+#else
 			if (prob.x[i][0].index != 0)
 			{
 				fprintf(stderr,"Wrong input format: first column must be 0:sample_serial_number\n");
@@ -374,7 +462,7 @@ void read_problem(const char *filename)
 				fprintf(stderr,"Wrong input format: sample_serial_number out of range\n");
 				exit(1);
 			}
+#endif
 		}
-
 	fclose(fp);
 }

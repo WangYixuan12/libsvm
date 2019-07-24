@@ -88,6 +88,37 @@ void predict(FILE *input, FILE *output)
 		if(endptr == label || *endptr != '\0')
 			exit_input_error(total+1);
 
+#ifdef _DENSE_REP
+		x->dim = 0;
+		while(1)
+		{
+			idx = strtok(NULL,":");
+			val = strtok(NULL," \t");
+
+			if(val == NULL)
+				break;
+			errno = 0;
+			i = (int) strtol(idx,&endptr,10);
+			if(endptr == idx || errno != 0 || *endptr != '\0' || i <= inst_max_index)
+				exit_input_error(total+1);
+			else
+				inst_max_index = i;
+
+			errno = 0;
+			double v = strtod(val,&endptr);
+			if(endptr == val || errno != 0 || (*endptr != '\0' && !isspace(*endptr)))
+				exit_input_error(total+1);
+
+			while (i >= max_nr_attr)
+			{
+				max_nr_attr *= 2;
+				x->values = (double *) realloc(x->values, max_nr_attr*sizeof(double));
+			}
+			while (x->dim < i)
+				x->values[(x->dim)++] = 0.0;
+			x->values[(x->dim)++] = v;
+		}
+#else
 		while(1)
 		{
 			if(i>=max_nr_attr-1)	// need one more for index = -1
@@ -116,6 +147,7 @@ void predict(FILE *input, FILE *output)
 			++i;
 		}
 		x[i].index = -1;
+#endif
 
 		if (predict_probability && (svm_type==C_SVC || svm_type==NU_SVC))
 		{
@@ -214,7 +246,12 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+#ifdef _DENSE_REP
+	x = (struct svm_node *) malloc(sizeof(struct svm_node));
+	x->values = (double *) malloc(max_nr_attr*sizeof(double));
+#else
 	x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
+#endif
 	if(predict_probability)
 	{
 		if(svm_check_probability_model(model)==0)
@@ -231,6 +268,9 @@ int main(int argc, char **argv)
 
 	predict(input,output);
 	svm_free_and_destroy_model(&model);
+#ifdef _DENSE_REP
+	free(x->values);
+#endif
 	free(x);
 	free(line);
 	fclose(input);
