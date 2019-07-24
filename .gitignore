@@ -1,0 +1,16 @@
+*~
+*.swp
+
+*.o
+libsvm.so.2
+svm-predict
+svm-scale
+svm-train
+data
+
+*.model
+*.range
+*.scale
+*.scale.*
+*.predict
+
