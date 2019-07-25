@@ -1,5 +1,5 @@
 CXX ?= g++
-CFLAGS = -Wall -Wconversion -Wextra -Wconversion -O3 -fPIC -flto -D _DENSE_REP
+CFLAGS = -Wall -Wconversion -Wextra -Wconversion -O3 -g -fPIC -flto -D _DENSE_REP
 SHVER = 2
 OS = $(shell uname)
 
@@ -23,3 +23,10 @@ svm.o: svm.cpp svm.h
 	$(CXX) $(CFLAGS) -c svm.cpp
 clean:
 	rm -f *~ svm.o svm-train svm-predict svm-scale libsvm.so.$(SHVER)
+
+install: lib
+	mkdir -p ~/local/include/svm
+	cp svm.h ~/local/include/svm/
+	cp libsvm.so.2 ~/local/lib/
+	ln -sf ~/local/lib/libsvm.so.2 ~/local/lib/libsvm.so
+

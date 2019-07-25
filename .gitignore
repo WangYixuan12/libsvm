@@ -2,7 +2,7 @@
 *.swp
 
 *.o
-libsvm.so.2
+libsvm.so*
 svm-predict
 svm-scale
 svm-train
