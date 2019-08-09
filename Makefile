@@ -25,6 +25,7 @@ clean:
 	rm -f *~ svm.o svm-train svm-predict svm-scale libsvm.so.$(SHVER)
 
 install: lib
+	mkdir -p ~/local/lib
 	mkdir -p ~/local/include/svm
 	cp svm.h ~/local/include/svm/
 	cp libsvm.so.2 ~/local/lib/
