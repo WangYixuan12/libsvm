@@ -1,4 +1,5 @@
 CXX ?= g++
+INSTALL_PATH ?= ~/.local
 CFLAGS = -Wall -Wconversion -Wextra -Wconversion -O3 -g -fPIC -flto -D _DENSE_REP
 SHVER = 2
 OS = $(shell uname)
@@ -25,9 +26,9 @@ clean:
 	rm -f *~ svm.o svm-train svm-predict svm-scale libsvm.so.$(SHVER)
 
 install: lib
-	mkdir -p ~/local/lib
-	mkdir -p ~/local/include/svm
-	cp svm.h ~/local/include/svm/
-	cp libsvm.so.2 ~/local/lib/
-	ln -sf ~/local/lib/libsvm.so.2 ~/local/lib/libsvm.so
+	mkdir -p $(INSTALL_PATH)/lib
+	mkdir -p $(INSTALL_PATH)/include/svm
+	cp svm.h $(INSTALL_PATH)/include/svm/
+	cp libsvm.so.2 $(INSTALL_PATH)/lib/
+	ln -sf $(INSTALL_PATH)/lib/libsvm.so.2 $(INSTALL_PATH)/lib/libsvm.so
 
